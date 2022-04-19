@@ -1,0 +1,74 @@
+------------------------------------------------------------------------------------------
+#Python code to fetch a Author column and filter it.(not null and truncate birthdates of author)
+------------------------------------------------------------------------------------------
+
+import pandas as pd
+import csv
+import numpy as np
+
+df = pd.read_csv('pg_catalog.csv',usecols = ['Authors']) #Filtering dataframe
+vector_not_null = df['Authors'].notnull()
+df_not_null = df[vector_not_null]
+
+df_not_null['Authors'] = df_not_null['Authors'].str.split("; ")
+s1=[]
+
+for index, row in df_not_null.iterrows():
+    arrLen=row["Authors"][0].count(",")
+    j=0
+    
+    s=row["Authors"][0]
+    noNum = ''.join([i for i in s if not i.isdigit()])
+    nospace=noNum.replace(",", "")
+    s1.append(nospace.replace("-", ""))
+    j=0
+
+s2=pd.DataFrame(s1)
+s2.to_csv("filteredData.csv")
+
+
+
+------------------------------------------------------------------------------------------
+
+create author table in postgres
+------------------------------------------------------------------------------------------
+
+CREATE TABLE Authors (
+    Id serial primary Key,
+    Name VARCHAR(400) NOT NULL,
+    Country VARCHAR(120) NOT NULL
+);
+
+------------------------------------------------------------------------------------------
+Postgres script to fetch the data from the filtered CSV File
+
+------------------------------------------------------------------------------------------
+CREATE or replace FUNCTION random_values_author()
+RETURNS VARCHAR(1000)
+AS
+$$
+DECLARE
+  	aname VARCHAR(600) := '';
+	country VARCHAR(30) := '';
+	Counter  INTEGER := 1;
+	CountryCounter INTEGER := 1;
+	AuthorCounter INTEGER := 1;
+	strAuthorCounter VARCHAR(100) = '';
+ 
+begin
+	while Counter<=1000000 loop
+	CountryCounter := (random()*240+1);
+	AuthorCounter := (random()*67416+1);
+	aname := (SELECT author FROM public."authornames" LIMIT 1 OFFSET (AuthorCounter+1));
+	--strAuthorCounter := AuthorCounter::int8;
+	aname := concat(aname,AuthorCounter);
+	--country := (SELECT countryname FROM public."tbl_countries" LIMIT 1 OFFSET (CountryCounter+1));
+	INSERT INTO authors (name,country) values (aname,(SELECT countryname FROM public."tbl_countries" LIMIT 1 OFFSET (CountryCounter+1)));
+	Counter:=Counter+1;
+	end loop;
+return aname;
+END;
+
+$$ LANGUAGE plpgsql;
+
+------------------------------------------------------------------------------------------
